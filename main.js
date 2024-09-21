@@ -365,9 +365,13 @@ const onMouseMove = (event) => {
     if (ship) {
         ship.rotation.y = yaw;
         // If pitch is desired for the ship, uncomment the next line
-        ship.rotation.x = pitch / 2;
+       // ship.rotation.x = pitch / 2;
     }
 };
+
+// {{ edit_1: Factor out SHIP_SPEED constant }}
+const SHIP_SPEED = 0.5; // Adjust the speed as needed
+// {{ end_edit_1 }}
 
 // Animation Loop
 const animate = () => {
@@ -379,12 +383,13 @@ const animate = () => {
         direction.x = Number(moveRight) - Number(moveLeft);
         direction.normalize();
 
+        // {{ edit_2: Replace hard-coded speed with SHIP_SPEED }}
         if (moveForward || moveBackward) {
             const forward = new THREE.Vector3();
             ship.getWorldDirection(forward);
             forward.y = 0;
             forward.normalize();
-            ship.position.add(forward.multiplyScalar(direction.z * 0.5));
+            ship.position.add(forward.multiplyScalar(direction.z * SHIP_SPEED));
         }
         if (moveLeft || moveRight) {
             const right = new THREE.Vector3();
@@ -392,8 +397,9 @@ const animate = () => {
             right.y = 0;
             right.normalize();
             right.cross(new THREE.Vector3(0, 1, 0)); // Get right vector
-            ship.position.add(right.multiplyScalar(direction.x * 0.5));
+            ship.position.add(right.multiplyScalar(direction.x * SHIP_SPEED));
         }
+        // {{ end_edit_2 }}
 
         // Update camera position to follow the ship
         const rotatedOffset = cameraOffset.clone().applyQuaternion(ship.quaternion);
@@ -404,7 +410,31 @@ const animate = () => {
 
     updateScoreDisplay();
     updateBoostIndicator(); // Update boost indicator
+    updateSpeedDisplay(); // Update speed display
     renderer.render(scene, camera);
 };
+
+// {{ edit_3: Add Speed Display Element }}
+// Create Speed Display
+const speedElement = document.createElement('div');
+speedElement.style.position = 'absolute';
+speedElement.style.bottom = '20px';
+speedElement.style.left = '20px';
+speedElement.style.color = 'yellow';
+speedElement.style.fontSize = '24px';
+speedElement.style.fontFamily = 'Arial';
+speedElement.style.padding = '10px 20px';
+speedElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+speedElement.style.borderRadius = '10px';
+speedElement.style.textShadow = '2px 2px 4px #000';
+speedElement.innerHTML = `Speed: ${SHIP_SPEED}`;
+document.body.appendChild(speedElement);
+// {{ end_edit_3 }}
+
+// {{ edit_4: Update Speed Display in Animation Loop }}
+const updateSpeedDisplay = () => {
+    speedElement.innerHTML = `Speed: ${SHIP_SPEED}`;
+};
+// {{ end_edit_4 }}
 
 animate();
