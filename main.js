@@ -33,19 +33,23 @@ const mouseSensitivity = 0.0008;
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
 
-// Add skyboxx
-const textureLoader = new THREE.TextureLoader();
-textureLoader.load('/bg2.jpg', (texture) => {
-    const geometry = new THREE.SphereGeometry(700, 200, 4);
-    // Flip the geometry inside out
-    geometry.scale(-1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({
-        map: texture,
-    });
-    const skybox = new THREE.Mesh(geometry, material);
-    skybox.position.y = 0; // Adjust if necessary
-    scene.add(skybox);
-});
+// Load EXR image for skybox
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+
+const exrLoader = new EXRLoader();
+exrLoader.load(
+    '/exr.exr',
+    (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = texture;
+        scene.environment = texture;
+        console.log('EXR skybox loaded successfully');
+    },
+    undefined,
+    (error) => {
+        console.error('Error loading EXR skybox:', error);
+    }
+);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(
@@ -80,7 +84,7 @@ shipLoader.load(
     '/ship.glb',
     (gltf) => {
         ship = gltf.scene;
-        ship.scale.set(1, 1, 1); // Adjust scale as needed
+        ship.scale.set(0.7, 0.7, 0.7); // Adjust scale as needed
         ship.position.set(0, 0, 0); // Initial position
         ship.rotation.y = Math.PI; // Adjust initial rotation if necessary
         scene.add(ship);
@@ -287,10 +291,11 @@ const updateScoreDisplay = () => {
 const aimElement = document.createElement('div');
 aimElement.style.position = 'absolute';
 aimElement.style.left = '50%';
-aimElement.style.top = '50%';
+aimElement.style.top = '38%';
 aimElement.style.transform = 'translate(-50%, -50%)';
 aimElement.style.width = '20px';
 aimElement.style.height = '20px';
+aimElement.style.opacity = '0.5';
 aimElement.style.border = '2px dashed yellow';
 aimElement.style.borderRadius = '50%';
 document.body.appendChild(aimElement);
@@ -366,7 +371,7 @@ const onMouseMove = (event) => {
     if (ship) {
         ship.rotation.y = yaw;
         // If pitch is desired for the ship, uncomment the next line
-       // ship.rotation.x = pitch / 2;
+        ship.rotation.x = pitch / 5;  
     }
 };
 
@@ -376,7 +381,7 @@ const loadSun = () => {
         '/sun.glb',
         (gltf) => {
             const sun = gltf.scene;
-            sun.scale.set(6, 6, 6); // Scale the sun by x3
+            sun.scale.set(8, 8, 8); // Scale the sun by x3
             // Initialize sun position within LEVEL_SIZE
             const x = (Math.random() - 0.5) * LEVEL_SIZE;
             const z = (Math.random() - 0.5) * LEVEL_SIZE;
@@ -392,11 +397,11 @@ const loadSun = () => {
                             map: child.material.map,
                             color: child.material.color,
                             emissive: 0xffff00,
-                            emissiveIntensity: 0.4, // Increased from 1
+                            emissiveIntensity: 0.2, // Increased from 1
                         });
                     } else {
                         child.material.emissive = new THREE.Color(0xffff00);
-                        child.material.emissiveIntensity = 0.4; // Increased from 1
+                        child.material.emissiveIntensity = 0.2; // Increased from 1
                     }
                 }
             });
