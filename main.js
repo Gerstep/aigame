@@ -3,11 +3,17 @@ import { Raycaster, Vector2 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Constants
-const NUM_PLANETS = 500;
-const LEVEL_SIZE = 1000;
+const NUM_PLANETS = 50;
+const LEVEL_SIZE = 100;
 const PLANET_DISTANCE_THRESHOLD = 10;
 const PLANET_MODELS = ['planet1.glb', 'planet2.glb', 'planet3.glb', 'planet4.glb', 'planet5.glb', 'planet6.glb', 'planet7.glb'];
+const STAR_MODELS = ['sun.glb']
 const BOOST_STRENGTH = 50;
+const SHIP_SPEED_BASE = 0.5; // Base speed
+let SHIP_SPEED = SHIP_SPEED_BASE; // Current speed
+const NUM_SUNS = 10; // Number of suns to load
+const SUN_SPEED = 0.2; // Movement speed
+const sunDirections = [];
 
 // Constants for planet scores
 const PLANET_SCORES = {
@@ -236,7 +242,14 @@ const onMouseClick = (event) => {
             const distance = ship.position.distanceTo(button.object.position);
             if (distance < PLANET_DISTANCE_THRESHOLD) {
                 score += button.score;
-                console.log(`Score: ${score}`);
+                console.log(`Energy: ${score}`);
+                
+                // Check if the collected object is the sun
+                if (button.type === 'sun') {
+                    SHIP_SPEED += 0.1; // Increase speed permanently
+                    console.log(`Speed increased! New Speed: ${SHIP_SPEED}`);
+                }
+
                 resetButton(button.object);
             }
         }
@@ -274,12 +287,12 @@ scoreElement.style.padding = '10px 20px';
 scoreElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
 scoreElement.style.borderRadius = '10px';
 scoreElement.style.textShadow = '2px 2px 4px #000';
-scoreElement.innerHTML = `Score: ${score}`;
+scoreElement.innerHTML = `Energy: ${score}`;
 document.body.appendChild(scoreElement);
 
 // Update score display in animation loop
 const updateScoreDisplay = () => {
-    scoreElement.innerHTML = `Score: ${score}`;
+    scoreElement.innerHTML = `Energy: ${score}`;
 };
 
 // Add Aim Element
@@ -369,11 +382,70 @@ const onMouseMove = (event) => {
     }
 };
 
-// {{ edit_1: Factor out SHIP_SPEED constant }}
-const SHIP_SPEED = 0.5; // Adjust the speed as needed
-// {{ end_edit_1 }}
+// {{ edit_1: Define NUM_SUNS constant }}
+// {{ end_edit_2 }}
 
-// Animation Loop
+// {{ edit_3: Load suns based on NUM_SUNS during initialization }}
+const loadSun = () => {
+    gltfLoader.load(
+        '/sun.glb',
+        (gltf) => {
+            const sun = gltf.scene;
+            sun.scale.set(3, 3, 3); // Scale the sun by x3
+            // Initialize sun position within LEVEL_SIZE
+            const x = (Math.random() - 0.5) * LEVEL_SIZE;
+            const z = (Math.random() - 0.5) * LEVEL_SIZE;
+            sun.position.set(x, 0, z);
+
+            // Ensure the sun reacts to lighting
+            sun.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (!(child.material instanceof THREE.MeshStandardMaterial)) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            map: child.material.map,
+                            color: child.material.color,
+                        });
+                    }
+                }
+            });
+
+            // Add sun to buttons with type 'sun'
+            buttons.push({ object: sun, score: PLANET_SCORES['sun.glb'] || 10, type: 'sun' });
+            scene.add(sun);
+            console.log('Sun added to scene');
+
+            // Initialize sun direction
+            sunDirections.push(1); // Start moving forward
+        },
+        (xhr) => {
+            console.log(`Loading Sun: ${((xhr.loaded / xhr.total) * 100).toFixed(2)}%`);
+        },
+        (error) => {
+            console.error('An error occurred while loading the Sun model:', error);
+        }
+    );
+};
+
+// Load all suns based on NUM_SUNS
+for (let i = 0; i < NUM_SUNS; i++) {
+    loadSun();
+}
+// {{ end_edit_3 }}
+
+// {{ edit_4: Remove loadSun from animate function }}
+// Ensure that loadSun is not called within the animate loop
+// If there is a call like loadSun() inside animate, remove it.
+// Example:
+// const animate = () => {
+//     requestAnimationFrame(animate);
+//     loadSun(); // Remove or comment out this line
+//     ...
+// };
+// {{ end_edit_4 }}
+
+// {{ edit_5: Update Sun Movement in Animation Loop }}
 const animate = () => {
     requestAnimationFrame(animate);
 
@@ -383,7 +455,9 @@ const animate = () => {
         direction.x = Number(moveRight) - Number(moveLeft);
         direction.normalize();
 
-        // {{ edit_2: Replace hard-coded speed with SHIP_SPEED }}
+        // {{ edit_2: Update SHIP_SPEED usage }}
+        // Replace SHIP_SPEED with the current variable
+        // In movement logic
         if (moveForward || moveBackward) {
             const forward = new THREE.Vector3();
             ship.getWorldDirection(forward);
@@ -408,11 +482,28 @@ const animate = () => {
         camera.lookAt(ship.position);
     }
 
+    // {{ edit_5a: Move each sun across the plane }}
+    buttons.forEach((button, index) => {
+        if (button.type === 'sun') {
+            const sun = button.object;
+            sun.position.x += SUN_SPEED * sunDirections[index];
+            sun.position.z += SUN_SPEED * sunDirections[index]; // Move diagonally for full plane traversal
+
+            // Reverse direction if sun reaches boundaries
+            if (sun.position.x > LEVEL_SIZE / 2 || sun.position.x < -LEVEL_SIZE / 2 ||
+                sun.position.z > LEVEL_SIZE / 2 || sun.position.z < -LEVEL_SIZE / 2) {
+                sunDirections[index] *= -1;
+            }
+        }
+    });
+    // {{ end_edit_5a }}
+
     updateScoreDisplay();
     updateBoostIndicator(); // Update boost indicator
     updateSpeedDisplay(); // Update speed display
     renderer.render(scene, camera);
 };
+// {{ end_edit_5 }}
 
 // {{ edit_3: Add Speed Display Element }}
 // Create Speed Display
