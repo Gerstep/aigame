@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 import { TextureLoader } from 'three';
+import { Raycaster, Vector2 } from 'three'; // {{ edit_1: Import Raycaster and Vector2 }}
 
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
@@ -13,13 +14,13 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 // Load and render VRML model
-const vrmlLoader = new VRMLLoader();
-vrmlLoader.load('LEVhouse.wrl', (object) => {
-    // Scale and position the model as needed
-    object.scale.set(10, 10, 10); // Adjust scale as needed
-    object.position.set(0, -10, 0); // Adjust position as needed
-    scene.add(object);
-});
+// const vrmlLoader = new VRMLLoader();
+// vrmlLoader.load('LEVhouse.wrl', (object) => {
+//     // Scale and position the model as needed
+//     object.scale.set(10, 10, 10); // Adjust scale as needed
+//     object.position.set(50, -10, 50); // Adjust position as needed
+//     scene.add(object);
+// });
 
 const ambientLight = new THREE.AmbientLight( 0xffffff, 1.2 );
 scene.add( ambientLight );
@@ -128,7 +129,7 @@ document.addEventListener('keyup', onKeyUp, false);
 // floor.rotation.x = Math.PI / 2;
 // scene.add(floor);
 
-// Animation Loop
+// Consolidate all animate logic into the first animate function
 const animate = () => {
     requestAnimationFrame(animate);
 
@@ -160,10 +161,16 @@ const animate = () => {
         velocity.z *= 0.5;
     }
 
+    // Update score display
+    scoreElement.innerHTML = `Score: ${score}`;
+    scoreElement.style.scale = 3;
+    scoreElement.style.position = 'absolute';
+    scoreElement.style.top = '20px';
+    scoreElement.style.left = '70px';
+    scoreElement.style.color = 'black';
+
     renderer.render(scene, camera);
 };
-
-animate();
 
 // Handle window resize
 window.addEventListener('resize', () => {
@@ -171,3 +178,75 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }, false);
+
+// Initialize Raycaster and Mouse Vector
+const raycaster = new Raycaster(); // {{ edit_2: Initialize Raycaster }}
+const mouse = new Vector2();
+
+// Initialize Score Counter
+let score = 0; // {{ edit_3: Initialize score counter }}
+
+// Create Button
+const buttonGeometry = new THREE.BoxGeometry(1, 1, 1);
+const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+button.position.set(5, 0.5, -5); // Position the button in the scene
+scene.add(button);
+
+// Add Event Listener for Click
+const onMouseClick = (event) => { // {{ edit_4: Add mouse click handler }}
+    // Calculate mouse position in normalized device coordinates
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    // Update Raycaster
+    raycaster.setFromCamera(mouse, camera);
+
+    // Calculate intersect objects
+    const intersects = raycaster.intersectObjects([button]);
+
+    if (intersects.length > 0) {
+        // Check distance between player and button
+        const distance = camera.position.distanceTo(button.position);
+        if (distance < 5) { // Adjust the distance threshold as needed
+            score += 1;
+            console.log(`Score: ${score}`); // {{ edit_5: Update score display }}
+            resetButton();
+        }
+    }
+};
+
+document.addEventListener('click', onMouseClick, false); // {{ edit_6: Attach click event }}
+
+// Function to Reset Button
+const resetButton = () => { // {{ edit_7: Define reset function }}
+    button.position.set(Math.random() * 20 - 10, 0.5, Math.random() * 20 - 10); // Move button to a new random location
+    button.material.color.set(0x00ff00); // Change color to indicate reset
+    setTimeout(() => {
+        button.material.color.set(0xff0000); // Revert color after a short delay
+    }, 500);
+};
+
+// Optionally, display score in the scene using HTML or THREE.js text
+// Example using HTML:
+const scoreElement = document.createElement('div');
+scoreElement.style.position = 'absolute';
+scoreElement.style.top = '10px';
+scoreElement.style.left = '10px';
+scoreElement.style.color = 'white';
+scoreElement.innerHTML = `Score: ${score}`;
+document.body.appendChild(scoreElement);
+
+// {{ edit_8: Add aim element }}
+const aimElement = document.createElement('div');
+aimElement.style.position = 'absolute';
+aimElement.style.left = '50%';
+aimElement.style.top = '50%';
+aimElement.style.transform = 'translate(-50%, -50%)';
+aimElement.style.width = '20px';
+aimElement.style.height = '20px';
+aimElement.style.border = '2px dashed yellow';
+aimElement.style.borderRadius = '50%';
+document.body.appendChild(aimElement);
+
+animate();
