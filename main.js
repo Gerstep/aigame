@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 import { TextureLoader } from 'three';
 
 // Scene, Camera, Renderer
@@ -11,9 +12,25 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 
+// Load and render VRML model
+const vrmlLoader = new VRMLLoader();
+vrmlLoader.load('LEVhouse.wrl', (object) => {
+    // Scale and position the model as needed
+    object.scale.set(10, 10, 10); // Adjust scale as needed
+    object.position.set(0, -10, 0); // Adjust position as needed
+    scene.add(object);
+});
+
+const ambientLight = new THREE.AmbientLight( 0xffffff, 1.2 );
+scene.add( ambientLight );
+
+const dirLight = new THREE.DirectionalLight( 0xffffff, 2.0 );
+dirLight.position.set( 200, 200, 200 );
+scene.add( dirLight );
+
 // Add skybox
 const loader = new TextureLoader();
-loader.load('public/bg1.png', (texture) => {
+loader.load('bg1.png', (texture) => {
     const geometry = new THREE.SphereGeometry(500, 60, 40);
     // Flip the geometry inside out
     geometry.scale(-1, 1, 1);
@@ -90,19 +107,19 @@ const onKeyUp = (event) => {
 document.addEventListener('keydown', onKeyDown, false);
 document.addEventListener('keyup', onKeyUp, false);
 
-// Simple 3D Structures
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+// // Simple 3D Structures
+// const geometry = new THREE.BoxGeometry();
+// const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 
-for (let i = 0; i < 20; i++) {
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.set(
-        Math.random() * 50 - 25,
-        Math.random() * 5,
-        Math.random() * 50 - 25
-    );
-    scene.add(cube);
-}
+// for (let i = 0; i < 20; i++) {
+//     const cube = new THREE.Mesh(geometry, material);
+//     cube.position.set(
+//         Math.random() * 50 - 25,
+//         Math.random() * 5,
+//         Math.random() * 50 - 25
+//     );
+//     scene.add(cube);
+// }
 
 // Floor
 // const floorGeometry = new THREE.PlaneGeometry(50, 50);
