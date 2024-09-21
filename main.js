@@ -174,7 +174,7 @@ const loadPlanet = () => {
             const z = (Math.random() - 0.5) * LEVEL_SIZE;
             const y = 0; // Place on ground level
             planet.position.set(x, y, z);
-            const randomScale = Math.random() * 2 + 1; // Random number between 1 and 3
+            const randomScale = Math.random() * 3.5 + 0.5; // Random number between 0.5 and 4
             planet.scale.set(randomScale, randomScale, randomScale); // Set all scale params to the same random value
 
             // Ensure the model reacts to lighting
@@ -469,8 +469,9 @@ const animate = () => {
     buttons.forEach((button) => {
         if (button.type === 'sun') {
             const sun = button.object;
-            sun.position.x += SUN_SPEED * button.direction;
-            sun.position.z += SUN_SPEED * button.direction; // Move diagonally for full plane traversal
+            // Update the sun's position using a sinusoidal pattern
+            sun.position.x += SUN_SPEED * Math.sin(Date.now() * 0.00001) * button.direction;
+            sun.position.z += SUN_SPEED * Math.sin(Date.now() * 0.00001) * button.direction;
 
             // Reverse direction if sun reaches boundaries
             if (sun.position.x > LEVEL_SIZE / 2 || sun.position.x < -LEVEL_SIZE / 2 ||
