@@ -1,18 +1,20 @@
 import * as THREE from 'three';
 import { Raycaster, Vector2 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+
 
 // Constants
-const NUM_PLANETS = 50;
-const LEVEL_SIZE = 400;
-const PLANET_DISTANCE_THRESHOLD = 10;
+const NUM_PLANETS = 150;
+const LEVEL_SIZE = 500;
+const PLANET_DISTANCE_THRESHOLD = 12;
 const PLANET_MODELS = ['planet1.glb', 'planet2.glb', 'planet3.glb', 'planet4.glb', 'planet5.glb', 'planet6.glb', 'planet7.glb'];
 const BOOST_STRENGTH = 50;
 const SHIP_SPEED_BASE = 0.5; // Base speed
 let SHIP_SPEED = SHIP_SPEED_BASE; // Current speed
-const NUM_SUNS = 3; // Number of suns to load
+const NUM_SUNS = 5; // Number of suns to load
 const SUN_SPEED = 0.15; // Movement speed
-
+const SHIP_SPEED_INCREMENT = 0.1; // Speed increment
 // Constants for planet scores
 const PLANET_SCORES = {
     'planet1.glb': 1,
@@ -33,9 +35,6 @@ const mouseSensitivity = 0.0008;
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
 
-// Load EXR image for skybox
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-
 const exrLoader = new EXRLoader();
 exrLoader.load(
     '/exr.exr',
@@ -43,6 +42,7 @@ exrLoader.load(
         texture.mapping = THREE.EquirectangularReflectionMapping;
         scene.background = texture;
         scene.environment = texture;
+        scene.backgroundIntensity = 1;
         console.log('EXR skybox loaded successfully');
     },
     undefined,
@@ -58,24 +58,17 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     1000
 );
-camera.position.set(0, 2, 10); // Adjust as needed
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+// Add ambient light to the scene
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Color: white, Intensity: 0.5
 scene.add(ambientLight);
+console.log('Ambient light added to scene');
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(5, 10, 7.5);
-scene.add(dirLight);
-
-const pointLight = new THREE.PointLight(0xffffff, 1);
-pointLight.position.set(-5, 5, -5);
-scene.add(pointLight);
 
 // Add Ship Model
 let ship;
@@ -97,7 +90,7 @@ shipLoader.load(
 );
 
 // Camera Offset for Third-Person View
-const cameraOffset = new THREE.Vector3(0, 5, -10); // Adjust as needed
+const cameraOffset = new THREE.Vector3(0, 3, -9); // Adjust as needed
 
 // Declare movement flags
 let moveForward = false;
@@ -181,7 +174,8 @@ const loadPlanet = () => {
             const z = (Math.random() - 0.5) * LEVEL_SIZE;
             const y = 0; // Place on ground level
             planet.position.set(x, y, z);
-            planet.scale.set(1, 1, 1); // Adjust scale as needed
+            const randomScale = Math.random() * 2 + 1; // Random number between 1 and 3
+            planet.scale.set(randomScale, randomScale, randomScale); // Set all scale params to the same random value
 
             // Ensure the model reacts to lighting
             planet.traverse((child) => {
@@ -247,7 +241,7 @@ const onMouseClick = (event) => {
                 
                 // Check if the collected object is the sun
                 if (button.type === 'sun') {
-                    SHIP_SPEED += 0.1; // Increase speed permanently
+                    SHIP_SPEED += SHIP_SPEED_INCREMENT; // Increase speed permanently
                     console.log(`Speed increased! New Speed: ${SHIP_SPEED}`);
                 }
 
@@ -381,7 +375,7 @@ const loadSun = () => {
         '/sun.glb',
         (gltf) => {
             const sun = gltf.scene;
-            sun.scale.set(8, 8, 8); // Scale the sun by x3
+            sun.scale.set(10, 10, 10); // Scale the sun by x3
             // Initialize sun position within LEVEL_SIZE
             const x = (Math.random() - 0.5) * LEVEL_SIZE;
             const z = (Math.random() - 0.5) * LEVEL_SIZE;
@@ -397,19 +391,22 @@ const loadSun = () => {
                             map: child.material.map,
                             color: child.material.color,
                             emissive: 0xffff00,
-                            emissiveIntensity: 0.2, // Increased from 1
+                            emissiveIntensity: 0.8, // Increased from 1
                         });
                     } else {
                         child.material.emissive = new THREE.Color(0xffff00);
-                        child.material.emissiveIntensity = 0.2; // Increased from 1
+                        child.material.emissiveIntensity = 0.8; // Increased from 1
                     }
                 }
             });
 
-            // Add sun to buttons with type 'sun' and initial direction
             buttons.push({ object: sun, score: PLANET_SCORES['sun.glb'] || 10, type: 'sun', direction: 1 });
             scene.add(sun);
-            console.log('Sun added to scene');
+            
+            // Add PointLight to sun
+            const sunLight = new THREE.PointLight(0xffff00, 3000, 50000);
+            sun.add(sunLight);
+            console.log('Sun added to scene with light');
         },
         (xhr) => {
             console.log(`Loading Sun: ${((xhr.loaded / xhr.total) * 100).toFixed(2)}%`);
