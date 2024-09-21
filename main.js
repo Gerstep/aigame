@@ -159,7 +159,6 @@ document.addEventListener('keyup', onKeyUp, false);
 
 // Initialize Raycaster and Mouse Vector
 const raycaster = new Raycaster();
-const mouse = new Vector2();
 
 // Initialize Score Counter
 let score = 0;
@@ -210,7 +209,7 @@ const loadPlanet = () => {
     );
 };
 
-// Load all buttons
+// Load all planets
 for (let i = 0; i < NUM_PLANETS; i++) {
     loadPlanet();
 }
@@ -266,10 +265,15 @@ const resetButton = (button) => {
     // Optionally, change color or add other effects
     button.traverse((child) => {
         if (child.isMesh && child.material) {
-            child.material.color.setHex(0x00ff00); // Change to green
-            setTimeout(() => {
-                child.material.color.setHex(0xff0000); // Revert to red
-            }, 500);
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+                child.material.visible = !child.material.visible;
+                blinkCount++;
+                if (blinkCount >= 6) { // 3 full blinks (on-off-on-off-on-off)
+                    clearInterval(blinkInterval);
+                    child.material.visible = true; // Ensure visibility at the end
+                }
+            }, 300); // Blink every 100ms for a fast effect
         }
     });
 };
@@ -382,9 +386,6 @@ const onMouseMove = (event) => {
     }
 };
 
-// {{ edit_1: Define NUM_SUNS constant }}
-// {{ end_edit_2 }}
-
 // {{ edit_3: Load suns based on NUM_SUNS during initialization }}
 const loadSun = () => {
     gltfLoader.load(
@@ -406,7 +407,12 @@ const loadSun = () => {
                         child.material = new THREE.MeshStandardMaterial({
                             map: child.material.map,
                             color: child.material.color,
+                            emissive: 0xffff00,
+                            emissiveIntensity: 1
                         });
+                    } else {
+                        child.material.emissive = new THREE.Color(0xffff00);
+                        child.material.emissiveIntensity = 1;
                     }
                 }
             });
@@ -433,17 +439,6 @@ for (let i = 0; i < NUM_SUNS; i++) {
     loadSun();
 }
 // {{ end_edit_3 }}
-
-// {{ edit_4: Remove loadSun from animate function }}
-// Ensure that loadSun is not called within the animate loop
-// If there is a call like loadSun() inside animate, remove it.
-// Example:
-// const animate = () => {
-//     requestAnimationFrame(animate);
-//     loadSun(); // Remove or comment out this line
-//     ...
-// };
-// {{ end_edit_4 }}
 
 // {{ edit_5: Update Sun Movement in Animation Loop }}
 const animate = () => {
@@ -503,6 +498,7 @@ const animate = () => {
     updateSpeedDisplay(); // Update speed display
     renderer.render(scene, camera);
 };
+
 // {{ end_edit_5 }}
 
 // {{ edit_3: Add Speed Display Element }}
