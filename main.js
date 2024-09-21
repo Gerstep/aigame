@@ -381,6 +381,14 @@ const loadSun = () => {
             const z = (Math.random() - 0.5) * LEVEL_SIZE;
             sun.position.set(x, 0, z);
 
+            // Generate random color between orange and white-blue
+            const sunColor = new THREE.Color();
+            sunColor.setHSL(
+                THREE.MathUtils.randFloat(10 / 360, 220 / 360), // Hue between ~30 (orange) and ~220 (light blue)
+                THREE.MathUtils.randFloat(0.3, 1),               // Saturation between 0.5 and 1
+                THREE.MathUtils.randFloat(0.5, 1)                // Lightness between 0.5 and 1
+            );
+
             // Ensure the sun reacts to lighting
             sun.traverse((child) => {
                 if (child.isMesh) {
@@ -389,13 +397,13 @@ const loadSun = () => {
                     if (!(child.material instanceof THREE.MeshStandardMaterial)) {
                         child.material = new THREE.MeshStandardMaterial({
                             map: child.material.map,
-                            color: child.material.color,
-                            emissive: 0xffff00,
-                            emissiveIntensity: 0.8, // Increased from 1
+                            color: sunColor,
+                            emissive: sunColor,
+                            emissiveIntensity: 0.8,
                         });
                     } else {
-                        child.material.emissive = new THREE.Color(0xffff00);
-                        child.material.emissiveIntensity = 0.8; // Increased from 1
+                        child.material.emissive = sunColor;
+                        child.material.emissiveIntensity = 0.8;
                     }
                 }
             });
@@ -403,8 +411,8 @@ const loadSun = () => {
             buttons.push({ object: sun, score: PLANET_SCORES['sun.glb'] || 10, type: 'sun', direction: 1 });
             scene.add(sun);
             
-            // Add PointLight to sun
-            const sunLight = new THREE.PointLight(0xffff00, 3000, 50000);
+            // Add PointLight to sun with the same color
+            const sunLight = new THREE.PointLight(sunColor, 3000, 50000);
             sun.add(sunLight);
             console.log('Sun added to scene with light');
         },
