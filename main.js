@@ -1,14 +1,13 @@
 import * as THREE from 'three';
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { Raycaster, Vector2 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Constants
-const NUM_PLANETS = 200;
-const LEVEL_SIZE = 500;
+const NUM_PLANETS = 500;
+const LEVEL_SIZE = 1000;
 const PLANET_DISTANCE_THRESHOLD = 10;
-const PLANET_MODELS = ['planet1.glb', 'planet2.glb', 'planet3.glb', 'planet4.glb'];
-const BOOST_STRENGTH = 40;
+const PLANET_MODELS = ['planet1.glb', 'planet2.glb', 'planet3.glb', 'planet4.glb', 'planet5.glb', 'planet6.glb', 'planet7.glb'];
+const BOOST_STRENGTH = 50;
 
 // Constants for planet scores
 const PLANET_SCORES = {
@@ -16,12 +15,21 @@ const PLANET_SCORES = {
     'planet2.glb': 2,
     'planet3.glb': 3,
     'planet4.glb': 4,
+    'planet5.glb': 5,
+    'planet6.glb': 4,
+    'planet7.glb': 4,
 };
+
+// Mouse Movement Variables
+let yaw = 0; // Rotation around Y-axis
+let pitch = 0; // Rotation around X-axis (optional)
+const mouseSensitivity = 0.0008;
+
 
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
 
-// Add skybox
+// Add skyboxx
 const textureLoader = new THREE.TextureLoader();
 textureLoader.load('/bg2.jpg', (texture) => {
     const geometry = new THREE.SphereGeometry(700, 200, 4);
@@ -61,24 +69,36 @@ const pointLight = new THREE.PointLight(0xffffff, 1);
 pointLight.position.set(-5, 5, -5);
 scene.add(pointLight);
 
-// Controls
-const controls = new PointerLockControls(camera, document.body);
-scene.add(controls.object); // Updated to use controls.object instead of getObject()
+// Add Ship Model
+let ship;
+const shipLoader = new GLTFLoader();
+shipLoader.load(
+    '/ship.glb',
+    (gltf) => {
+        ship = gltf.scene;
+        ship.scale.set(1, 1, 1); // Adjust scale as needed
+        ship.position.set(0, 0, 0); // Initial position
+        ship.rotation.y = Math.PI; // Adjust initial rotation if necessary
+        scene.add(ship);
+        console.log('Ship model loaded and added to scene');
+    },
+    undefined,
+    (error) => {
+        console.error('An error occurred while loading the ship model:', error);
+    }
+);
 
-const onClick = () => {
-    controls.lock();
-};
+// Camera Offset for Third-Person View
+const cameraOffset = new THREE.Vector3(0, 5, -10); // Adjust as needed
 
-document.addEventListener('click', onClick, false);
-
-// Movement Variables
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
+// Declare movement flags
 let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
-let canJump = false;
+
+// Declare direction vector
+const direction = new THREE.Vector3();
 
 // Event Listeners for movement
 const onKeyDown = (event) => {
@@ -96,9 +116,14 @@ const onKeyDown = (event) => {
             moveRight = true;
             break;
         case 'Space':
-            if (score >= 10) { // Check if enough score
+            if (score >= 10 && ship) { // Check if enough score and ship is loaded
                 score -= 10;
-                velocity.z -= BOOST_STRENGTH; // Apply forward boost, adjust value as needed
+                // Apply forward boost relative to ship's direction without changing y
+                const forward = new THREE.Vector3();
+                ship.getWorldDirection(forward);
+                forward.y = 0; // Ensure no change in y-axis
+                forward.normalize();
+                ship.position.add(forward.multiplyScalar(BOOST_STRENGTH));
                 console.log(`Boost applied! Score: ${score}`);
                 updateScoreDisplay();
             }
@@ -186,10 +211,20 @@ for (let i = 0; i < NUM_PLANETS; i++) {
 
 // Add Event Listener for Click
 const onMouseClick = (event) => {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    if (!ship) return;
 
-    raycaster.setFromCamera(mouse, camera);
+    // Get ship's forward direction
+    const forward = new THREE.Vector3();
+    ship.getWorldDirection(forward);
+    forward.y = 0; // Ensure horizontal direction
+    forward.normalize();
+
+    // Set ray origin to ship's position
+    const origin = new THREE.Vector3();
+    ship.getWorldPosition(origin);
+
+    // Set raycaster to originate from ship and go forward
+    raycaster.set(origin, forward);
 
     const intersects = raycaster.intersectObjects(scene.children, true);
 
@@ -198,7 +233,7 @@ const onMouseClick = (event) => {
         const button = buttons.find(btn => btn.object === intersected || btn.object.getObjectById(intersected.id));
         
         if (button) {
-            const distance = camera.position.distanceTo(button.object.position);
+            const distance = ship.position.distanceTo(button.object.position);
             if (distance < PLANET_DISTANCE_THRESHOLD) {
                 score += button.score;
                 console.log(`Score: ${score}`);
@@ -297,37 +332,74 @@ window.addEventListener(
     false
 );
 
+// Add Pointer Lock on click
+const onClick = () => {
+    renderer.domElement.requestPointerLock();
+};
+
+document.addEventListener('click', onClick, false);
+
+// Pointer Lock Change Events
+document.addEventListener('pointerlockchange', onPointerLockChange, false);
+
+function onPointerLockChange() {
+    if (document.pointerLockElement === renderer.domElement) {
+        document.addEventListener('mousemove', onMouseMove, false);
+    } else {
+        document.removeEventListener('mousemove', onMouseMove, false);
+    }
+}
+
+
+// Mouse Move Handler
+const onMouseMove = (event) => {
+    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+    yaw -= movementX * mouseSensitivity;
+    pitch -= movementY * mouseSensitivity;
+
+    // Optional: Limit pitch to prevent flipping
+    pitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, pitch));
+
+    if (ship) {
+        ship.rotation.y = yaw;
+        // If pitch is desired for the ship, uncomment the next line
+        ship.rotation.x = pitch / 2;
+    }
+};
+
 // Animation Loop
 const animate = () => {
     requestAnimationFrame(animate);
 
-    if (controls.isLocked === true) {
+    if (ship) {
+        // Calculate movement direction relative to ship's orientation
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.x = Number(moveRight) - Number(moveLeft);
         direction.normalize();
 
-        if (moveForward || moveBackward) velocity.z -= direction.z * 0.1;
-        if (moveLeft || moveRight) velocity.x -= direction.x * 0.1;
-
-        // Apply gravity
-        velocity.y -= 9.8 * 0.016; // Assuming 60 FPS
-
-        controls.moveRight(-velocity.x);
-        controls.moveForward(-velocity.z);
-
-        // Move the camera vertically
-        controls.object.position.y += velocity.y;
-
-        // Check if on ground and reset jump
-        if (controls.object.position.y < 1.5) { // Adjust ground level as needed
-            velocity.y = 0;
-            controls.object.position.y = 1.5;
-            canJump = true;
+        if (moveForward || moveBackward) {
+            const forward = new THREE.Vector3();
+            ship.getWorldDirection(forward);
+            forward.y = 0;
+            forward.normalize();
+            ship.position.add(forward.multiplyScalar(direction.z * 0.5));
+        }
+        if (moveLeft || moveRight) {
+            const right = new THREE.Vector3();
+            ship.getWorldDirection(right);
+            right.y = 0;
+            right.normalize();
+            right.cross(new THREE.Vector3(0, 1, 0)); // Get right vector
+            ship.position.add(right.multiplyScalar(direction.x * 0.5));
         }
 
-        // Apply friction
-        velocity.x *= 0.3;
-        velocity.z *= 0.3;
+        // Update camera position to follow the ship
+        const rotatedOffset = cameraOffset.clone().applyQuaternion(ship.quaternion);
+        const desiredPosition = ship.position.clone().add(rotatedOffset);
+        camera.position.lerp(desiredPosition, 0.1); // Smooth camera movement
+        camera.lookAt(ship.position);
     }
 
     updateScoreDisplay();
