@@ -4,10 +4,11 @@ import { Raycaster, Vector2 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Constants
-const NUM_PLANETS = 90;
-const LEVEL_SIZE = 300;
+const NUM_PLANETS = 200;
+const LEVEL_SIZE = 500;
 const PLANET_DISTANCE_THRESHOLD = 10;
 const PLANET_MODELS = ['planet1.glb', 'planet2.glb', 'planet3.glb', 'planet4.glb'];
+const BOOST_STRENGTH = 40;
 
 // Constants for planet scores
 const PLANET_SCORES = {
@@ -97,7 +98,7 @@ const onKeyDown = (event) => {
         case 'Space':
             if (score >= 10) { // Check if enough score
                 score -= 10;
-                velocity.z -= 2; // Apply forward boost, adjust value as needed
+                velocity.z -= BOOST_STRENGTH; // Apply forward boost, adjust value as needed
                 console.log(`Boost applied! Score: ${score}`);
                 updateScoreDisplay();
             }
@@ -265,11 +266,19 @@ boostIndicator.style.position = 'absolute';
 boostIndicator.style.bottom = '20px';
 boostIndicator.style.left = '50%';
 boostIndicator.style.transform = 'translateX(-50%)';
-boostIndicator.style.width = '20px';
-boostIndicator.style.height = '20px';
+boostIndicator.style.width = '100px';
+boostIndicator.style.height = '40px';
 boostIndicator.style.border = '2px solid yellow';
-boostIndicator.style.borderRadius = '50%';
-boostIndicator.style.backgroundColor = score >= 10 ? 'green' : 'red'; // Initial color
+boostIndicator.style.borderRadius = '15px';
+boostIndicator.style.backgroundColor = score >= 10 ? 'green' : 'red';
+boostIndicator.style.display = 'flex';
+boostIndicator.style.justifyContent = 'center';
+boostIndicator.style.alignItems = 'center';
+boostIndicator.style.color = 'white';
+boostIndicator.style.fontWeight = 'bold';
+boostIndicator.style.fontSize = '24px';
+boostIndicator.textContent = 'BOOST';
+boostIndicator.style.fontFamily = 'Arial';
 document.body.appendChild(boostIndicator);
 
 // Update Boost Indicator in animation loop
