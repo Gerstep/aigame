@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { TextureLoader } from 'three';
 
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
@@ -9,6 +10,20 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     1000
 );
+
+// Add skybox
+const loader = new TextureLoader();
+loader.load('public/bg1.png', (texture) => {
+    const geometry = new THREE.SphereGeometry(500, 60, 40);
+    // Flip the geometry inside out
+    geometry.scale(-1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({
+        map: texture
+    });
+    const skybox = new THREE.Mesh(geometry, material);
+    skybox.position.y = 400; // Move the skybox up
+    scene.add(skybox);
+});
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -49,7 +64,7 @@ const onKeyDown = (event) => {
             moveRight = true;
             break;
         case 'Space':
-            if (canJump === true) velocity.y += 350;
+            if (canJump === true) velocity.y += 3;
             canJump = false;
             break;
     }
@@ -90,11 +105,11 @@ for (let i = 0; i < 20; i++) {
 }
 
 // Floor
-const floorGeometry = new THREE.PlaneGeometry(200, 200);
-const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x808080, side: THREE.DoubleSide });
-const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-floor.rotation.x = Math.PI / 2;
-scene.add(floor);
+// const floorGeometry = new THREE.PlaneGeometry(50, 50);
+// const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x808080, side: THREE.DoubleSide });
+// const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+// floor.rotation.x = Math.PI / 2;
+// scene.add(floor);
 
 // Animation Loop
 const animate = () => {
@@ -108,11 +123,24 @@ const animate = () => {
         if (moveForward || moveBackward) velocity.z -= direction.z * 0.1;
         if (moveLeft || moveRight) velocity.x -= direction.x * 0.1;
 
+        // Apply gravity
+        velocity.y -= 9.8 * 0.016; // Assuming 60 FPS
+
         controls.moveRight(-velocity.x);
         controls.moveForward(-velocity.z);
 
-        velocity.x *= 0.9;
-        velocity.z *= 0.9;
+        // Move the camera vertically
+        controls.getObject().position.y += velocity.y;
+
+        // Check if on ground and reset jump
+        if (controls.getObject().position.y < 0.5) {
+            velocity.y = 0;
+            controls.getObject().position.y = 0.5;
+            canJump = true;
+        }
+
+        velocity.x *= 0.5;
+        velocity.z *= 0.5;
     }
 
     renderer.render(scene, camera);
