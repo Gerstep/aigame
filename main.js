@@ -467,7 +467,6 @@ const animate = () => {
                 sun.position.z > LEVEL_SIZE / 2 || sun.position.z < -LEVEL_SIZE / 2) {
                 button.direction *= -1;
             }
-            console.log(`Sun Position: x=${sun.position.x}, y=${sun.position.y}, z=${sun.position.z}`);
         }
     });
 
