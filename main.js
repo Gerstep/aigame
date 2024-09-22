@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Raycaster, Vector2 } from 'three';
+import { Raycaster } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
@@ -176,7 +176,7 @@ const loadSun = () => {
             sun.scale.set(sunScale, sunScale, sunScale);
             sun.position.set(
                 (Math.random() - 0.5) * CONFIG.LEVEL_SIZE,
-                0,
+                (Math.random() - 0.5) * CONFIG.LEVEL_SIZE,
                 (Math.random() - 0.5) * CONFIG.LEVEL_SIZE
             );
 
@@ -540,8 +540,8 @@ const animate = () => {
     buttons.forEach((button) => {
         if (button.type === 'sun') {
             const sun = button.object;
-            sun.position.x += CONFIG.SUN_SPEED * Math.sin(Date.now() * 0.00001) * button.direction;
-            sun.position.z += CONFIG.SUN_SPEED * Math.sin(Date.now() * 0.00001) * button.direction;
+            sun.position.x += CONFIG.SUN_SPEED * 0.1 * Math.sin(Date.now() * 0.000005) * button.direction;
+            sun.position.z += CONFIG.SUN_SPEED * 0.1 * Math.sin(Date.now() * 0.000005) * button.direction;
 
             if (
                 sun.position.x > CONFIG.LEVEL_SIZE / 2 || sun.position.x < -CONFIG.LEVEL_SIZE / 2 ||
