@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 import { Raycaster } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 // === Constants ===
 const CONFIG = {
-    NUM_PLANETS: 75,
+    NUM_PLANETS: 100,
     LEVEL_SIZE: 1000,
-    PLANET_DISTANCE_THRESHOLD: 12,
+    PLANET_DISTANCE_THRESHOLD: 15,
     PLANET_MODELS: [
         'planet1.glb',
         'planet2.glb',
@@ -17,11 +16,11 @@ const CONFIG = {
         'planet6.glb',
         'planet7.glb'
     ],
-    BOOST_STRENGTH: 50,
+    BOOST_STRENGTH: 100,
     SHIP_SPEED_BASE: 0.5,
-    NUM_SUNS: 5,
+    NUM_SUNS: 9,
     SUN_SPEED: 0.15,
-    SHIP_SPEED_INCREMENT: 0.1,
+    SHIP_SPEED_INCREMENT: 0.2,
     PLANET_SCORES: {
         'planet1.glb': 1,
         'planet2.glb': 2,
@@ -58,14 +57,13 @@ const camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    10000
 );
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // === Loaders ===
-const exrLoader = new EXRLoader();
 const gltfLoader = new GLTFLoader();
 let ship;
 
@@ -76,18 +74,27 @@ console.log('Ambient light added to scene');
 
 // === Models Loading ===
 const loadEnvironment = () => {
-    exrLoader.load(
-        '/exr.exr',
-        (texture) => {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            scene.background = texture;
-            scene.environment = texture;
-            scene.backgroundIntensity = 1;
-            console.log('EXR skybox loaded successfully');
+    gltfLoader.load(
+        '/billions.glb',
+        (gltf) => {
+            const nebula = gltf.scene;
+            nebula.scale.set(5000, 5000, 5000); // Adjust scale as necessary to encompass the scene
+            nebula.position.set(0, 0, 0); // Center the nebula in the scene
+            
+            // Traverse the nebula model to set materials to render on the inside
+            nebula.traverse((child) => {
+                if (child.isMesh) {
+                    child.material.side = THREE.BackSide; // Render inside faces
+                    child.material.depthWrite = false;    // Prevent skybox from affecting depth
+                }
+            });
+
+            scene.add(nebula);
+            console.log('Nebula skybox loaded successfully');
         },
         undefined,
         (error) => {
-            console.error('Error loading EXR skybox:', error);
+            console.error('Error loading Nebula skybox:', error);
         }
     );
 };
@@ -139,7 +146,7 @@ const loadPlanet = (clustering = false, clusterCenter = new THREE.Object3D(), or
                     (Math.random() - 0.5) * CONFIG.LEVEL_SIZE
                 );
             }
-            const randomScale = Math.random() * 3.5 + 0.5;
+            const randomScale = Math.random() * 4 + 0.2;
             planet.scale.set(randomScale, randomScale, randomScale);
 
             planet.traverse((child) => {
@@ -173,7 +180,7 @@ const loadSun = () => {
         '/sun.glb',
         (gltf) => {
             const sun = gltf.scene;
-            let sunScale = Math.random() * 20 + 1;
+            let sunScale = Math.random() * 50 + 0.3;
             sun.scale.set(sunScale, sunScale, sunScale);
             sun.position.set(
                 (Math.random() - 0.5) * CONFIG.LEVEL_SIZE,
