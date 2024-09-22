@@ -45,6 +45,7 @@ let moveRight = false;
 let moveUp = false;
 let moveDown = false;
 let score = 0;
+let projectiles = []; // Added: Array to store active projectiles
 
 const direction = new THREE.Vector3();
 const cameraOffset = new THREE.Vector3(0, 3, -9);
@@ -98,7 +99,7 @@ const loadShip = () => {
             ship = gltf.scene;
             ship.scale.set(0.7, 0.7, 0.7);
             ship.position.set(0, 0, 0);
-            ship.rotation.y = Math.PI;
+            ship.rotation.y = Math.PI + Math.PI / 4;
             scene.add(ship);
             console.log('Ship model loaded and added to scene');
         },
@@ -293,36 +294,26 @@ const handleKeyUp = (event) => {
 const handleMouseClick = () => {
     if (!ship) return;
 
-    const forward = new THREE.Vector3();
-    ship.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
+    // Create and launch a projectile
+    const projectileGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+    const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
 
+    // Calculate the ship's current direction using quaternion
+    const projectileDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(ship.quaternion).normalize();
+
+    // Set the projectile's initial position slightly in front of the ship
     const origin = new THREE.Vector3();
     ship.getWorldPosition(origin);
+    const offset = projectileDirection.clone().multiplyScalar(1); // Adjust the scalar as needed (e.g., 1 unit ahead)
+    projectile.position.copy(origin).add(offset);
 
-    raycaster.set(origin, forward);
-    const intersects = raycaster.intersectObjects(scene.children, true);
+    // Set projectile velocity
+    projectile.velocity = projectileDirection.multiplyScalar(2); // Set projectile speed
+    scene.add(projectile);
+    projectiles.push(projectile);
 
-    if (intersects.length > 0) {
-        const intersected = intersects[0].object;
-        const button = buttons.find(btn => btn.object === intersected || btn.object.getObjectById(intersected.id));
-        
-        if (button) {
-            const distance = ship.position.distanceTo(button.object.position);
-            if (distance < CONFIG.PLANET_DISTANCE_THRESHOLD) {
-                score += button.score;
-                console.log(`Energy: ${score}`);
-
-                if (button.type === 'sun') {
-                    SHIP_SPEED += CONFIG.SHIP_SPEED_INCREMENT;
-                    console.log(`Speed increased! New Speed: ${SHIP_SPEED}`);
-                }
-
-                resetButton(button.object);
-            }
-        }
-    }
+    console.log('Projectile fired');
 };
 
 const handleMouseMove = (event) => {
@@ -456,7 +447,7 @@ const createUIElements = () => {
             <li><strong>E/Q:</strong> Move Up/Down</li>
             <li><strong>Mouse:</strong> Look Around</li>
             <li><strong>Space:</strong> Boost (Requires 10 Energy)</li>
-            <li><strong>Move close and Click:</strong> Shoot</li>
+            <li><strong>Click:</strong> Shoot</li>
         </ul>
     `;
     document.body.appendChild(instructionsPanel);
@@ -560,6 +551,36 @@ const animate = () => {
             planet.position.x = orbitCenter.position.x + button.object.userData.orbitRadius * Math.cos(planet.userData.orbitAngle);
             planet.position.z = orbitCenter.position.z + button.object.userData.orbitRadius * Math.sin(planet.userData.orbitAngle);
             // If you want the planet to maintain Y position, you can omit or adjust the Y-axis accordingly
+        }
+    });
+
+    // Move projectiles and handle collisions
+    projectiles.forEach((projectile, index) => {
+        projectile.position.add(projectile.velocity);
+
+        buttons.forEach((button) => {
+            const distance = projectile.position.distanceTo(button.object.position);
+            if (distance < CONFIG.PLANET_DISTANCE_THRESHOLD) {
+                // Remove projectile and target from the scene
+                scene.remove(projectile);
+                scene.remove(button.object);
+                projectiles.splice(index, 1);
+                buttons.splice(buttons.indexOf(button), 1);
+
+                // Reward the player
+                score += button.score;
+                if (button.type === 'sun') {
+                    SHIP_SPEED += CONFIG.SHIP_SPEED_INCREMENT;
+                }
+
+                console.log(`Hit ${button.type}! Score: ${score}`);
+            }
+        });
+
+        // Remove projectile if it goes out of bounds
+        if (projectile.position.length() > CONFIG.LEVEL_SIZE) {
+            scene.remove(projectile);
+            projectiles.splice(index, 1);
         }
     });
 
