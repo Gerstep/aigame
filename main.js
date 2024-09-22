@@ -5,8 +5,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 // === Constants ===
 const CONFIG = {
-    NUM_PLANETS: 150,
-    LEVEL_SIZE: 500,
+    NUM_PLANETS: 75,
+    LEVEL_SIZE: 1000,
     PLANET_DISTANCE_THRESHOLD: 12,
     PLANET_MODELS: [
         'planet1.glb',
@@ -109,7 +109,7 @@ const loadShip = () => {
     );
 };
 
-const loadPlanet = (clustering = false, clusterCenter = new THREE.Vector3(), orbitRadius = 0, orbitSpeed = 0) => {
+const loadPlanet = (clustering = false, clusterCenter = new THREE.Object3D(), orbitRadius = 0, orbitSpeed = 0) => {
     const randomModel = CONFIG.PLANET_MODELS[Math.floor(Math.random() * CONFIG.PLANET_MODELS.length)];
     gltfLoader.load(
         `/${randomModel}`,
@@ -119,13 +119,13 @@ const loadPlanet = (clustering = false, clusterCenter = new THREE.Vector3(), orb
             if (clustering) {
                 const angle = Math.random() * 2 * Math.PI;
                 planet.position.set(
-                    clusterCenter.x + orbitRadius * Math.cos(angle),
-                    clusterCenter.y + (Math.random() - 0.5) * 100, // Slight vertical variation
-                    clusterCenter.z + orbitRadius * Math.sin(angle)
+                    clusterCenter.position.x + orbitRadius * Math.cos(angle),
+                    clusterCenter.position.y + (Math.random() - 0.5) * 50, // Slight vertical variation
+                    clusterCenter.position.z + orbitRadius * Math.sin(angle)
                 );
-                // Store orbit data in userData
+                // Store orbit data in userData, referencing the cluster center (sun)
                 planet.userData = { 
-                    orbitCenter: clusterCenter.clone(),
+                    orbitCenter: clusterCenter,
                     orbitRadius: orbitRadius,
                     orbitAngle: angle,
                     orbitSpeed: orbitSpeed 
@@ -172,7 +172,8 @@ const loadSun = () => {
         '/sun.glb',
         (gltf) => {
             const sun = gltf.scene;
-            sun.scale.set(40, 40, 40);
+            let sunScale = Math.random() * 20 + 1;
+            sun.scale.set(sunScale, sunScale, sunScale);
             sun.position.set(
                 (Math.random() - 0.5) * CONFIG.LEVEL_SIZE,
                 0,
@@ -204,12 +205,22 @@ const loadSun = () => {
                 }
             });
 
+            // Add sun to buttons for interaction
             buttons.push({ object: sun, score: CONFIG.PLANET_SCORES['sun.glb'] || 10, type: 'sun', direction: 1 });
             scene.add(sun);
 
+            // Add PointLight to sun with the same color
             const sunLight = new THREE.PointLight(sunColor, 3000, 50000);
             sun.add(sunLight);
             console.log('Sun added to scene with light');
+
+            // Spawn planets orbiting this sun
+            const planetsPerSun = Math.floor(CONFIG.NUM_PLANETS / CONFIG.NUM_SUNS);
+            for (let i = 0; i < planetsPerSun; i++) {
+                const orbitRadius = THREE.MathUtils.randFloat(20, CONFIG.LEVEL_SIZE / 4); // Varying orbit distances
+                const orbitSpeed = THREE.MathUtils.randFloat(0.001, CONFIG.SUN_SPEED * 0.01); // Varying orbit speeds
+                loadPlanet(true, sun, orbitRadius, orbitSpeed);
+            }
         },
         (xhr) => {
             console.log(`Loading Sun: ${((xhr.loaded / xhr.total) * 100).toFixed(2)}%`);
@@ -422,7 +433,36 @@ const createUIElements = () => {
     speedElement.innerHTML = `Speed: ${SHIP_SPEED}`;
     document.body.appendChild(speedElement);
 
-    return { scoreElement, boostIndicator, speedElement };
+    // Add Instructions Panel
+    const instructionsPanel = document.createElement('div');
+    Object.assign(instructionsPanel.style, {
+        position: 'absolute',
+        bottom: '20px',
+        right: '20px',
+        width: '250px',
+        padding: '15px',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        fontSize: '16px',
+        fontFamily: 'Arial, sans-serif',
+        borderRadius: '10px',
+        textShadow: '1px 1px 2px #000',
+        boxSizing: 'border-box',
+    });
+    instructionsPanel.innerHTML = `
+        <h3 style="margin-top: 0;">How to Play</h3>
+        <ul style="padding-left: 20px; margin: 0;">
+            <li><strong>W/A/S/D:</strong> Move Forward/Left/Backward/Right</li>
+            <li><strong>E/Q:</strong> Move Up/Down</li>
+            <li><strong>Mouse:</strong> Look Around</li>
+            <li><strong>Space:</strong> Boost (Requires 10 Energy)</li>
+            <li><strong>Click:</strong> Shoot</li>
+        </ul>
+    `;
+    document.body.appendChild(instructionsPanel);
+
+    // Update return statement to include instructionsPanel
+    return { scoreElement, boostIndicator, speedElement, instructionsPanel };
 };
 
 // === UI Update Functions ===
@@ -439,7 +479,7 @@ const updateSpeedDisplay = () => {
 };
 
 // === Initialize UI ===
-const { scoreElement, boostIndicator, speedElement } = createUIElements();
+const { scoreElement, boostIndicator, speedElement, instructionsPanel } = createUIElements();
 
 // === Window Resize Handler ===
 window.addEventListener('resize', () => {
@@ -514,8 +554,12 @@ const animate = () => {
         if (button.type === 'planet' && button.object.userData.orbitCenter) {
             const planet = button.object;
             planet.userData.orbitAngle += planet.userData.orbitSpeed;
-            planet.position.x = planet.userData.orbitCenter.x + planet.userData.orbitRadius * Math.cos(planet.userData.orbitAngle);
-            planet.position.z = planet.userData.orbitCenter.z + planet.userData.orbitRadius * Math.sin(planet.userData.orbitAngle);
+            
+            // Calculate new position based on the current position of the orbit center (sun)
+            const orbitCenter = button.object.userData.orbitCenter;
+            planet.position.x = orbitCenter.position.x + button.object.userData.orbitRadius * Math.cos(planet.userData.orbitAngle);
+            planet.position.z = orbitCenter.position.z + button.object.userData.orbitRadius * Math.sin(planet.userData.orbitAngle);
+            // If you want the planet to maintain Y position, you can omit or adjust the Y-axis accordingly
         }
     });
 
@@ -530,38 +574,11 @@ const init = () => {
     loadEnvironment();
     loadShip();
 
-    // Define cluster centers
-    const clusterCenters = [];
-    const numClusters = 5; // Number of clusters
-    for (let i = 0; i < numClusters; i++) {
-        const center = new THREE.Vector3(
-            (Math.random() - 0.5) * CONFIG.LEVEL_SIZE / 2,
-            0,
-            (Math.random() - 0.5) * CONFIG.LEVEL_SIZE / 2
-        );
-        clusterCenters.push(center);
-    }
-
-    // Spawn planets within clusters
-    const planetsPerCluster = Math.floor(CONFIG.NUM_PLANETS / numClusters);
-    clusterCenters.forEach((center) => {
-        for (let i = 0; i < planetsPerCluster; i++) {
-            const orbitRadius = CONFIG.LEVEL_SIZE / 10; // Adjust orbit radius as needed
-            const orbitSpeed = CONFIG.SUN_SPEED * (Math.random() * 0.005); // Randomize orbit speed
-            loadPlanet(true, center, orbitRadius, orbitSpeed);
-        }
-    });
-
-    // Spawn remaining planets randomly
-    const remainingPlanets = CONFIG.NUM_PLANETS - (planetsPerCluster * numClusters);
-    for (let i = 0; i < remainingPlanets; i++) {
-        loadPlanet();
-    }
-
-    // Load suns
+    // Spawn suns which will act as cluster centers
     for (let i = 0; i < CONFIG.NUM_SUNS; i++) {
         loadSun();
     }
+
     animate();
 };
 
