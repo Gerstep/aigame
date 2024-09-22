@@ -456,7 +456,7 @@ const createUIElements = () => {
             <li><strong>E/Q:</strong> Move Up/Down</li>
             <li><strong>Mouse:</strong> Look Around</li>
             <li><strong>Space:</strong> Boost (Requires 10 Energy)</li>
-            <li><strong>Click:</strong> Shoot</li>
+            <li><strong>Move close and Click:</strong> Shoot</li>
         </ul>
     `;
     document.body.appendChild(instructionsPanel);
